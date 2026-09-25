@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบยืม-คืนอุปกรณ์การเรียนและสำนักงาน (Smart QR Asset System)</title>
+  <meta name="description" content="ระบบยืม-คืนอุปกรณ์การเรียนและสำนักงาน (Smart QR Asset System) - ทำงานบนเว็บได้ทันที รองรับสแกน QR Code ผ่านกล้อง">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- HTML5 QR Code Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <!-- QRCode.js for generating QR Codes -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    .scanner-laser {
+      position: absolute;
+      left: 10%;
+      right: 10%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #10b981, transparent);
+      box-shadow: 0 0 10px #10b981;
+      animation: scanLaser 2s infinite ease-in-out;
+    }
+    @keyframes scanLaser {
+      0% { top: 15%; opacity: 0.2; }
+      50% { top: 85%; opacity: 1; }
+      100% { top: 15%; opacity: 0.2; }
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #print-area, #print-area * {
+        visibility: visible;
+      }
+      #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- TOP NAVIGATION -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-100">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">Smart QR Asset Lending</h1>
+          <p class="text-xs text-slate-500">ระบบยืม-คืนอุปกรณ์การเรียนและสำนักงาน</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex items-center gap-1 sm:gap-2">
+        <button onclick="switchTab('borrow')" id="nav-borrow" class="tab-btn px-3.5 py-2 rounded-xl text-sm font-semibold transition-all bg-indigo-600 text-white shadow-sm shadow-indigo-200">
+          📤 จุดบริการยืม
+        </button>
+        <button onclick="switchTab('return')" id="nav-return" class="tab-btn px-3.5 py-2 rounded-xl text-sm font-semibold transition-all text-slate-600 hover:bg-slate-100">
+          📥 จุดบริการคืน
+        </button>
+        <button onclick="switchTab('assets')" id="nav-assets" class="tab-btn px-3.5 py-2 rounded-xl text-sm font-semibold transition-all text-slate-600 hover:bg-slate-100">
+          📦 อุปกรณ์ & พิมพ์ QR
+        </button>
+        <button onclick="switchTab('users')" id="nav-users" class="tab-btn px-3.5 py-2 rounded-xl text-sm font-semibold transition-all text-slate-600 hover:bg-slate-100">
+          👤 บัตรผู้ยืม
+        </button>
+        <button onclick="switchTab('history')" id="nav-history" class="tab-btn px-3.5 py-2 rounded-xl text-sm font-semibold transition-all text-slate-600 hover:bg-slate-100">
+          📜 ประวัติ & รายงาน
+        </button>
+      </nav>
+
+      <!-- Action Buttons -->
+      <div class="hidden lg:flex items-center gap-2">
+        <button onclick="testLineNotification()" title="ทดสอบส่งการแจ้งเตือนเข้ากลุ่ม LINE" class="text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5 shadow-sm">
+          <span>💬</span> ทดสอบส่ง LINE
+        </button>
+        <button onclick="resetDemoData()" title="ล้างและคืนค่าข้อมูลเริ่มต้น" class="text-xs text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition">
+          ↺ รีเซ็ตข้อมูลทดสอบ
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+
+    <!-- ALERT BANNER -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-md"></div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: จุดบริการยืม (STAFF BORROW DESK)                    -->
+    <!-- ======================================================== -->
+    <section id="tab-borrow" class="tab-content block space-y-6">
+      
+      <!-- Banner Header -->
+      <div class="bg-gradient-to-r from-indigo-700 via-indigo-600 to-blue-600 text-white p-6 rounded-3xl shadow-lg shadow-indigo-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="inline-block bg-white/20 backdrop-blur-md text-white text-xs px-3 py-1 rounded-full font-medium mb-2">
+            Staff-Assisted Desk • โหมดเจ้าหน้าที่เคาน์เตอร์
+          </span>
+          <h2 class="text-2xl font-bold">บันทึกการยืมอุปกรณ์</h2>
+          <p class="text-indigo-100 text-sm mt-1">ระบุรหัสนักศึกษา 11 หลัก และชื่อผู้ยืม หรือสแกนเพื่อบันทึกการยืม</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="document.getElementById('input-borrower-student-id')?.focus()" class="px-5 py-2.5 bg-white text-indigo-700 font-bold text-sm rounded-xl shadow-md hover:bg-indigo-50 transition flex items-center gap-2">
+            ✍️ กรอกรหัสผู้ยืม
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- ฝั่งซ้าย: ข้อมูลผู้ยืม (Borrower Card) -->
+        <div class="lg:col-span-4 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
+                ขั้นตอนที่ 1 : ระบุตัวตนผู้ยืม (11 หลัก)
+              </span>
+              <button onclick="openSelectBorrowerModal()" class="text-xs text-indigo-600 hover:underline">
+                เลือกจากรายชื่อ
+              </button>
+            </div>
+
+            <!-- กล่องแสดงข้อมูลผู้ยืม -->
+            <div id="borrower-info-card">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Quick Test Select -->
+          <div class="mt-6 pt-4 border-t border-slate-100">
+            <label class="text-xs font-semibold text-slate-500 block mb-1">ทดสอบเลือกผู้ยืมด่วน:</label>
+            <select id="quick-borrower-select" onchange="quickSelectBorrower(this.value)" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+              <option value="">-- เลือกผู้ใช้ตัวอย่างเพื่อทดสอบ --</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ฝั่งขวา: รายการอุปกรณ์ที่จะยืม (Asset Cart) -->
+        <div class="lg:col-span-8 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
+                  ขั้นตอนที่ 2 : สแกนอุปกรณ์
+                </span>
+                <span id="asset-cart-count" class="text-xs font-bold text-slate-500">(0 รายการ)</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="openSelectAssetModal()" class="text-xs text-emerald-600 hover:underline">
+                  เลือกจากคลัง
+                </button>
+                <button id="btn-scan-asset" onclick="openScanner('ASSET')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5">
+                  ➕ สแกน QR อุปกรณ์
+                </button>
+              </div>
+            </div>
+
+            <!-- รายการอุปกรณ์ที่สแกนแล้ว -->
+            <div id="scanned-assets-list" class="space-y-2.5 min-h-[220px] max-h-[350px] overflow-y-auto pr-1">
+              <div class="text-center py-16 text-slate-400">
+                <div class="text-3xl mb-2">📦</div>
+                <p class="text-sm">ยังไม่มีอุปกรณ์ในรายการยืม</p>
+                <p class="text-xs text-slate-400 mt-0.5">กดปุ่ม "สแกน QR อุปกรณ์" เพื่อสแกนบาร์โค้ดหรือ QR Code ที่ติดบนตัวเครื่อง</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- แถบยืนยันการยืม -->
+          <div class="mt-6 pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <p class="text-xs text-slate-500">หมายเหตุการยืม (ถ้ามี):</p>
+              <input type="text" id="borrow-notes" placeholder="เช่น ยืมทำโครงงาน Lab 3, ยืมจัดกิจกรรม ฯลฯ" class="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 w-72 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <button id="btn-confirm-borrow" onclick="submitBorrow()" disabled class="w-full sm:w-auto px-8 py-3 bg-slate-200 text-slate-400 font-bold rounded-2xl transition cursor-not-allowed flex items-center justify-center gap-2">
+              ✓ ยืนยันการยืมอุปกรณ์
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: จุดบริการคืน (STAFF RETURN DESK)                    -->
+    <!-- ======================================================== -->
+    <section id="tab-return" class="tab-content hidden space-y-6">
+      
+      <div class="bg-gradient-to-r from-emerald-700 via-teal-600 to-cyan-600 text-white p-6 rounded-3xl shadow-lg shadow-teal-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="inline-block bg-white/20 backdrop-blur-md text-white text-xs px-3 py-1 rounded-full font-medium mb-2">
+            Return Check-in Desk
+          </span>
+          <h2 class="text-2xl font-bold">บันทึกการรับคืนอุปกรณ์</h2>
+          <p class="text-teal-100 text-sm mt-1">สแกน QR Code บนตัวอุปกรณ์เพื่อดึงข้อมูลผู้ยืม ตรวจสอบสภาพ และคิดค่าปรับ (ถ้ามี)</p>
+        </div>
+        <button onclick="openScanner('RETURN')" class="px-5 py-2.5 bg-white text-teal-800 font-bold text-sm rounded-xl shadow-md hover:bg-teal-50 transition flex items-center gap-2">
+          📷 สแกน QR อุปกรณ์ที่นำมาคืน
+        </button>
+      </div>
+
+      <!-- รายละเอียดการคืน -->
+      <div id="return-details-container" class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+        <div class="text-center py-16 text-slate-400">
+          <div class="text-4xl mb-3">🔄</div>
+          <h3 class="text-base font-bold text-slate-700">พร้อมรับคืนอุปกรณ์</h3>
+          <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+            กดปุ่ม "สแกน QR อุปกรณ์ที่นำมาคืน" ด้านบน หรือเลือกอุปกรณ์ที่กำลังถูกยืมอยู่จากรายการด้านล่าง
+          </p>
+        </div>
+      </div>
+
+      <!-- ตารางรายการที่กำลังถูกยืมอยู่ (Active Borrows Table) -->
+      <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+        <h3 class="font-bold text-slate-800 text-base mb-4 flex items-center justify-between">
+          <span>รายการอุปกรณ์ที่กำลังถูกยืมอยู่ ณ ปัจจุบัน (Active Borrowed Assets)</span>
+          <span id="active-borrow-count-badge" class="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-semibold">0 รายการ</span>
+        </h3>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-50 text-slate-700 uppercase font-semibold border-b border-slate-200">
+              <tr>
+                <th class="p-3">รหัสอุปกรณ์</th>
+                <th class="p-3">ชื่ออุปกรณ์</th>
+                <th class="p-3">ผู้ยืม</th>
+                <th class="p-3">วันที่ยืม</th>
+                <th class="p-3">กำหนดส่งคืน</th>
+                <th class="p-3">สถานะ</th>
+                <th class="p-3 text-right">ดำเนินการ</th>
+              </tr>
+            </thead>
+            <tbody id="active-borrows-tbody" class="divide-y divide-slate-100">
+              <!-- Render via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 3: จัดการอุปกรณ์ & พิมพ์ QR (ASSETS INVENTORY)         -->
+    <!-- ======================================================== -->
+    <section id="tab-assets" class="tab-content hidden space-y-6">
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">คลังอุปกรณ์และพิมพ์ QR Code สติ๊กเกอร์</h2>
+          <p class="text-xs text-slate-500 mt-0.5">เพิ่มอุปกรณ์ใหม่ในระบบ และสั่งพิมพ์สติ๊กเกอร์ QR Code ติดบนตัวเครื่อง</p>
+        </div>
+        <button onclick="openAddAssetModal()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-2xl shadow transition flex items-center gap-2">
+          ➕ ลงทะเบียนอุปกรณ์ใหม่
+        </button>
+      </div>
+
+      <!-- Asset Cards Grid -->
+      <div id="assets-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <!-- Render via JS -->
+      </div>
+
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 4: บัตรประจำตัวผู้ยืม (BORROWER ID CARDS)             -->
+    <!-- ======================================================== -->
+    <section id="tab-users" class="tab-content hidden space-y-6">
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">บัตรผู้ยืมและ QR Code ประจำตัว</h2>
+          <p class="text-xs text-slate-500 mt-0.5">แสดงบัตรประจำตัวนักศึกษา / บุคลากร เพื่อใช้สแกนยืมอุปกรณ์</p>
+        </div>
+        <button onclick="openAddUserModal()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-2xl shadow transition flex items-center gap-2">
+          ➕ เพิ่มผู้ใช้งานใหม่
+        </button>
+      </div>
+
+      <!-- Users Grid -->
+      <div id="users-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Render via JS -->
+      </div>
+
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 5: ประวัติและรายงาน (HISTORY & LOGS)                 -->
+    <!-- ======================================================== -->
+    <section id="tab-history" class="tab-content hidden space-y-6">
+      
+      <!-- Stats Overview -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500">อุปกรณ์ทั้งหมด</p>
+          <p id="stat-total-assets" class="text-2xl font-bold text-slate-900 mt-1">0</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500">กำลังถูกยืม</p>
+          <p id="stat-borrowed-assets" class="text-2xl font-bold text-amber-600 mt-1">0</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500">พร้อมให้ยืม</p>
+          <p id="stat-available-assets" class="text-2xl font-bold text-emerald-600 mt-1">0</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500">เกินกำหนดส่ง (Overdue)</p>
+          <p id="stat-overdue-assets" class="text-2xl font-bold text-rose-600 mt-1">0</p>
+        </div>
+      </div>
+
+      <!-- Transactions Log Table -->
+      <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+        <h3 class="font-bold text-slate-800 text-base mb-4">ประวัติการยืม-คืนทั้งหมด (Transaction History)</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-50 text-slate-700 uppercase font-semibold border-b border-slate-200">
+              <tr>
+                <th class="p-3">TX ID</th>
+                <th class="p-3">รหัสอุปกรณ์</th>
+                <th class="p-3">ชื่ออุปกรณ์</th>
+                <th class="p-3">ผู้ยืม</th>
+                <th class="p-3">วันที่ยืม</th>
+                <th class="p-3">กำหนดคืน</th>
+                <th class="p-3">วันที่คืนจริง</th>
+                <th class="p-3">สถานะ</th>
+                <th class="p-3">ค่าปรับ</th>
+                <th class="p-3">หมายเหตุ</th>
+              </tr>
+            </thead>
+            <tbody id="transactions-history-tbody" class="divide-y divide-slate-100">
+              <!-- Render via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 1: QR CODE CAMERA SCANNER MODAL                    -->
+  <!-- ======================================================== -->
+  <div id="modal-scanner" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-200 flex flex-col">
+      <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h3 id="scanner-modal-title" class="font-bold text-slate-800 text-base">สแกน QR Code</h3>
+          <p id="scanner-modal-desc" class="text-xs text-slate-500">ส่องกล้องไปที่ QR Code หรือ Barcode</p>
+        </div>
+        <button onclick="closeScanner()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold">
+          ✕
+        </button>
+      </div>
+
+      <div class="relative bg-black min-h-[300px] flex items-center justify-center overflow-hidden">
+        <div id="qr-camera-viewport" class="w-full h-full"></div>
+        <div id="scanner-laser-bar" class="scanner-laser pointer-events-none"></div>
+      </div>
+
+      <div class="p-4 bg-slate-50 flex flex-col gap-2">
+        <div class="flex items-center justify-between text-xs text-slate-600">
+          <span>สลับกล้อง / ตัวเลือก:</span>
+          <select id="camera-select" onchange="onCameraChange(this.value)" class="text-xs bg-white border border-slate-200 rounded-lg p-1.5 max-w-[200px]">
+            <option value="">ค้นหากล้อง...</option>
+          </select>
+        </div>
+
+        <!-- จำลองสแกนด่วน (กรณีทดสอบบนคอมพิวเตอร์ที่ไม่มีกล้อง) -->
+        <div class="pt-2 border-t border-slate-200">
+          <p class="text-[11px] font-semibold text-slate-500 mb-1">หรือคลิกทดสอบสแกนโค้ดทันที (Demo Test):</p>
+          <div id="scanner-quick-buttons" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+            <!-- Render quick scan buttons based on mode -->
+          </div>
+        </div>
+
+        <button onclick="closeScanner()" class="mt-2 w-full py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl text-xs transition">
+          ปิดหน้าต่างสแกน
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 2: PRINT QR CODE MODAL                             -->
+  <!-- ======================================================== -->
+  <div id="modal-print-qr" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl p-6 text-center">
+      <div id="print-area" class="p-4 border-2 border-dashed border-slate-300 rounded-2xl bg-white mb-4">
+        <h4 id="print-asset-title" class="font-bold text-slate-800 text-base mb-1">MacBook Air M2</h4>
+        <p id="print-asset-code" class="text-xs font-semibold text-indigo-600 mb-3">รหัส: LAP-001</p>
+        <div id="print-qr-target" class="flex justify-center my-3"></div>
+        <p id="print-asset-loc" class="text-[11px] text-slate-500 mt-2">สถานที่เก็บ: ตู้ IT-A1</p>
+        <p class="text-[9px] text-slate-400">ระบบจัดการยืม-คืนอุปกรณ์ QR Smart Inventory</p>
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="window.print()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow transition">
+          🖨️ สั่งพิมพ์ (Print)
+        </button>
+        <button onclick="document.getElementById('modal-print-qr').classList.add('hidden')" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition">
+          ปิด
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 3: ADD NEW ASSET MODAL                             -->
+  <!-- ======================================================== -->
+  <div id="modal-add-asset" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-lg text-slate-800">ลงทะเบียนอุปกรณ์ใหม่</h3>
+        <button onclick="document.getElementById('modal-add-asset').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">✕</button>
+      </div>
+
+      <form id="form-add-asset" onsubmit="handleSaveAsset(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">รหัสอุปกรณ์ (Asset Code):</label>
+          <input type="text" id="new-asset-code" required placeholder="เช่น LAP-005, PRJ-003" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">ชื่ออุปกรณ์:</label>
+          <input type="text" id="new-asset-name" required placeholder="เช่น Dell XPS 13, iPad Pro 11" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">หมวดหมู่:</label>
+          <select id="new-asset-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+            <option value="Notebook / Laptop">Notebook / Laptop (ยืมได้ 7 วัน)</option>
+            <option value="Projector & AV">Projector & AV (ยืมได้ 3 วัน)</option>
+            <option value="Tablet / iPad">Tablet / iPad (ยืมได้ 5 วัน)</option>
+            <option value="Office Stationery">Office Stationery (ยืมได้ 1 วัน)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">สถานที่จัดเก็บ:</label>
+          <input type="text" id="new-asset-loc" required placeholder="เช่น ตู้ Lab A1, ห้องพัสดุ 204" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">รายละเอียด/อุปกรณ์เสริม:</label>
+          <textarea id="new-asset-desc" placeholder="เช่น สายชาร์จ, อแดปเตอร์, กระเป๋า" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500" rows="2"></textarea>
+        </div>
+
+        <div class="pt-3 flex gap-2">
+          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition">
+            ✓ บันทึกและสร้าง QR Code
+          </button>
+          <button type="button" onclick="document.getElementById('modal-add-asset').classList.add('hidden')" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold">
+            ยกเลิก
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 4: ADD NEW USER (11-DIGIT STUDENT ID)              -->
+  <!-- ======================================================== -->
+  <div id="modal-add-user" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-6">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h3 class="font-bold text-lg text-slate-800">ลงทะเบียนผู้ยืมใหม่</h3>
+          <p class="text-xs text-slate-500">ระบุรหัสนักศึกษา 11 หลัก และข้อมูลผู้ยืม</p>
+        </div>
+        <button onclick="document.getElementById('modal-add-user').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold">✕</button>
+      </div>
+
+      <form id="form-add-user" onsubmit="handleSaveUser(event)" class="space-y-3 text-xs">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block font-semibold text-slate-700">รหัสนักศึกษา (11 หลัก): <span class="text-rose-500">*</span></label>
+            <span id="modal-user-id-counter" class="text-[10px] text-slate-400">0/11 หลัก</span>
+          </div>
+          <input
+            type="text"
+            id="new-user-student-id"
+            inputmode="numeric"
+            maxlength="11"
+            required
+            placeholder="เช่น 65010123456"
+            oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11); document.getElementById('modal-user-id-counter').innerText = `${this.value.length}/11 หลัก`;"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono focus:ring-2 focus:ring-indigo-500"
+          >
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">ชื่อ - นามสกุล: <span class="text-rose-500">*</span></label>
+          <input type="text" id="new-user-name" required placeholder="เช่น สมชาย ใจดี" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">อีเมล:</label>
+          <input type="email" id="new-user-email" placeholder="student@school.ac.th" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">เบอร์โทรศัพท์:</label>
+          <input type="tel" id="new-user-phone" placeholder="08x-xxx-xxxx" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">สิทธิ์การยืมสูงสุด (ชิ้น):</label>
+          <select id="new-user-limit" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+            <option value="3">3 ชิ้น (นักศึกษาทั่วไป)</option>
+            <option value="5">5 ชิ้น (บุคลากร / โครงงานพิเศษ)</option>
+            <option value="1">1 ชิ้น (จำกัดสิทธิ์)</option>
+          </select>
+        </div>
+
+        <div class="pt-3 flex gap-2">
+          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition">
+            ✓ บันทึกและสร้างบัตรผู้ยืม
+          </button>
+          <button type="button" onclick="document.getElementById('modal-add-user').classList.add('hidden')" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold">
+            ยกเลิก
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT APPLICATION CORE LOGIC -->
+  <script>
+    // ==========================================
+    // INITIAL SEED DATA & STORAGE MANAGEMENT
+    // ==========================================
+    const DEFAULT_USERS = [
+      {
+        id: 1,
+        studentId: '65010123456',
+        name: 'กิตติศักดิ์ พัฒนเดช',
+        email: '65010123456@student.ac.th',
+        phone: '081-234-5678',
+        role: 'Borrower',
+        status: 'Active',
+        maxLimit: 3,
+        userQrCode: '65010123456'
+      },
+      {
+        id: 2,
+        studentId: '65010987654',
+        name: 'ชลธิชา สมบูรณ์สุข',
+        email: '65010987654@student.ac.th',
+        phone: '082-345-6789',
+        role: 'Borrower',
+        status: 'Suspended',
+        maxLimit: 3,
+        userQrCode: '65010987654'
+      },
+      {
+        id: 3,
+        studentId: '64010555666',
+        name: 'ธีรภัทร ชาญวิทย์',
+        email: '64010555666@student.ac.th',
+        phone: '083-456-7890',
+        role: 'Borrower',
+        status: 'Active',
+        maxLimit: 5,
+        userQrCode: '64010555666'
+      }
+    ];
+
+    const DEFAULT_ASSETS = [
+      {
+        id: 1,
+        assetCode: 'LAP-001',
+        name: 'MacBook Air M2 13 inch',
+        category: 'Notebook / Laptop',
+        maxBorrowDays: 7,
+        finePerDay: 50,
+        status: 'Available', // Available, Borrowed, Maintenance
+        location: 'ตู้ IT-A1',
+        qrCodeHash: 'AST_LAP_001',
+        desc: 'ชิป M2, RAM 16GB, ที่ชาร์จ MagSafe 35W'
+      },
+      {
+        id: 2,
+        assetCode: 'LAP-002',
+        name: 'Dell Latitude 5430',
+        category: 'Notebook / Laptop',
+        maxBorrowDays: 7,
+        finePerDay: 50,
+        status: 'Available',
+        location: 'ตู้ IT-A1',
+        qrCodeHash: 'AST_LAP_002',
+        desc: 'Intel Core i5 Gen 12, สายชาร์จ Type-C 65W'
+      },
+      {
+        id: 3,
+        assetCode: 'PRJ-001',
+        name: 'Epson EB-X06 Portable Projector',
+        category: 'Projector & AV',
+        maxBorrowDays: 3,
+        finePerDay: 100,
+        status: 'Available',
+        location: 'ห้องพัสดุ ตู้ B2',
+        qrCodeHash: 'AST_PRJ_001',
+        desc: 'ความสว่าง 3,600 Lumens พร้อมสาย HDMI และกระเป๋าหิ้ว'
+      },
+      {
+        id: 4,
+        assetCode: 'TAB-001',
+        name: 'iPad Air 5 + Apple Pencil 2',
+        category: 'Tablet / iPad',
+        maxBorrowDays: 5,
+        finePerDay: 40,
+        status: 'Available',
+        location: 'ตู้ Media-C1',
+        qrCodeHash: 'AST_TAB_001',
+        desc: 'ความจุ 64GB Wi-Fi พร้อมปากกา Apple Pencil 2'
+      }
+    ];
+
+    // State Variables
+    let users = JSON.parse(localStorage.getItem('qr_users')) || DEFAULT_USERS;
+    // Upgrade existing stored users to 11 digits if old mock data exists
+    if (Array.isArray(users)) {
+      users = users.map(u => {
+        if (u.studentId === 'STD-6501') return { ...u, studentId: '65010123456', userQrCode: '65010123456', name: 'กิตติศักดิ์ พัฒนเดช' };
+        if (u.studentId === 'STD-6502') return { ...u, studentId: '65010987654', userQrCode: '65010987654', name: 'ชลธิชา สมบูรณ์สุข' };
+        if (u.studentId === 'EMP-1001') return { ...u, studentId: '64010555666', userQrCode: '64010555666', name: 'ธีรภัทร ชาญวิทย์' };
+        return u;
+      });
+    }
+    let assets = JSON.parse(localStorage.getItem('qr_assets')) || DEFAULT_ASSETS;
+    let transactions = JSON.parse(localStorage.getItem('qr_transactions')) || [];
+
+    // Current Session State
+    let currentBorrower = null;
+    let scannedAssetsInCart = [];
+    let currentScanMode = 'BORROWER'; // 'BORROWER' | 'ASSET' | 'RETURN'
+    let html5QrScanner = null;
+
+    // Save to LocalStorage
+    function persistData() {
+      localStorage.setItem('qr_users', JSON.stringify(users));
+      localStorage.setItem('qr_assets', JSON.stringify(assets));
+      localStorage.setItem('qr_transactions', JSON.stringify(transactions));
+      updateDashboardStats();
+    }
+
+    function resetDemoData() {
+      if (confirm('คุณต้องการรีเซ็ตข้อมูลทั้งหมดกลับเป็นค่าเริ่มต้นใช่หรือไม่?')) {
+        localStorage.clear();
+        users = [...DEFAULT_USERS];
+        assets = [...DEFAULT_ASSETS];
+        transactions = [];
+        persistData();
+        location.reload();
+      }
+    }
+
+    // ฟังก์ชันทดสอบส่งการแจ้งเตือนเข้า LINE Group
+    async function testLineNotification() {
+      showToast('⏳ กำลังทดสอบส่งข้อความเข้ากลุ่ม LINE...', 'info');
+      try {
+        const res = await fetch('/api/line-test');
+        const data = await res.json();
+        if (data.success) {
+          playBeep(true);
+          showToast('✅ ส่งข้อความทดสอบเข้า LINE Group สำเร็จแล้ว!', 'success');
+        } else {
+          playBeep(false);
+          showToast(`❌ ส่งไม่สำเร็จ: ${data.message || data.error}`, 'error');
+        }
+      } catch (err) {
+        showToast('❌ ไม่สามารถเชื่อมต่อกับ Server API (/api/line-test) ได้ กรุณาเปิดรัน `node server.js` ก่อนครับ', 'error');
+      }
+    }
+
+    // ==========================================
+    // AUDIO & SOUND FEEDBACK (Synthesized Web Audio)
+    // ==========================================
+    function playBeep(success = true) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(success ? 980 : 320, ctx.currentTime);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + (success ? 0.12 : 0.25));
+        if (navigator.vibrate) navigator.vibrate(success ? 80 : [100, 50, 100]);
+      } catch (e) {}
+    }
+
+    // ==========================================
+    // NOTIFICATION TOAST
+    // ==========================================
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const colors = {
+        success: 'bg-emerald-600 text-white shadow-emerald-200',
+        error: 'bg-rose-600 text-white shadow-rose-200',
+        warning: 'bg-amber-500 text-white shadow-amber-200',
+        info: 'bg-slate-800 text-white shadow-slate-200'
+      };
+      toast.className = `${colors[type] || colors.info} p-4 rounded-2xl shadow-lg text-xs font-semibold flex items-center justify-between gap-3 transform transition-all duration-300 translate-y-2 opacity-0`;
+      toast.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()" class="text-white/80 hover:text-white">✕</button>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 20);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    // ==========================================
+    // TAB NAVIGATION
+    // ==========================================
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(el => {
+        el.className = 'tab-btn px-3.5 py-2 rounded-xl text-sm font-semibold transition-all text-slate-600 hover:bg-slate-100';
+      });
+
+      const targetTab = document.getElementById(`tab-${tabId}`);
+      const targetNav = document.getElementById(`nav-${tabId}`);
+      if (targetTab) targetTab.classList.remove('hidden');
+      if (targetNav) targetNav.className = 'tab-btn px-3.5 py-2 rounded-xl text-sm font-semibold transition-all bg-indigo-600 text-white shadow-sm shadow-indigo-200';
+
+      if (tabId === 'assets') renderAssetsGrid();
+      if (tabId === 'users') renderUsersGrid();
+      if (tabId === 'return') renderActiveBorrowsTable();
+      if (tabId === 'history') renderHistoryTable();
+    }
+
+    // ==========================================
+    // QR CODE SCANNER ENGINE (HTML5-QRCode)
+    // ==========================================
+    function openScanner(mode) {
+      currentScanMode = mode;
+      const modal = document.getElementById('modal-scanner');
+      const title = document.getElementById('scanner-modal-title');
+      const desc = document.getElementById('scanner-modal-desc');
+
+      if (mode === 'BORROWER') {
+        title.innerText = 'สแกน QR Code ผู้ยืม';
+        desc.innerText = 'ส่องกล้องไปที่ QR Code หรือ Barcode บนบัตรนักศึกษา/พนักงาน';
+      } else if (mode === 'ASSET') {
+        title.innerText = 'สแกน QR Code อุปกรณ์';
+        desc.innerText = 'ส่องกล้องไปที่สติ๊กเกอร์ QR Code บนตัวเครื่องอุปกรณ์';
+      } else if (mode === 'RETURN') {
+        title.innerText = 'สแกน QR อุปกรณ์เพื่อรับคืน';
+        desc.innerText = 'ส่องกล้องไปที่ตัวอุปกรณ์ที่ผู้ยืมนำมาส่งคืน';
+      }
+
+      renderQuickScanButtons(mode);
+      modal.classList.remove('hidden');
+
+      // Start HTML5 Camera
+      startCamera();
+    }
+
+    async function startCamera() {
+      try {
+        if (html5QrScanner) {
+          await html5QrScanner.stop().catch(() => {});
+        }
+
+        html5QrScanner = new Html5Qrcode("qr-camera-viewport");
+        const devices = await Html5Qrcode.getCameras().catch(() => []);
+        
+        const cameraSelect = document.getElementById('camera-select');
+        cameraSelect.innerHTML = '';
+        
+        if (devices && devices.length > 0) {
+          devices.forEach(dev => {
+            const opt = document.createElement('option');
+            opt.value = dev.id;
+            opt.innerText = dev.label || `Camera ${dev.id}`;
+            cameraSelect.appendChild(opt);
+          });
+
+          // Use rear camera as default
+          const backCam = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear'));
+          const selectedId = backCam ? backCam.id : devices[0].id;
+          cameraSelect.value = selectedId;
+
+          await html5QrScanner.start(
+            selectedId,
+            { fps: 15, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0 },
+            (decodedText) => {
+              handleDecodedQRCode(decodedText);
+            },
+            (error) => {}
+          );
+        } else {
+          document.getElementById('qr-camera-viewport').innerHTML = `
+            <div class="text-slate-400 text-xs p-6 text-center">
+              <p class="text-xl mb-1">📷</p>
+              <p>ไม่พบกล้องเว็บแคม หรือยังไม่ได้อนุญาตการเข้าถึงกล้อง</p>
+              <p class="text-indigo-400 mt-2 font-medium">คุณสามารถคลิกปุ่ม "ทดสอบสแกนโค้ดทันที" ด้านล่างได้</p>
+            </div>
+          `;
+        }
+      } catch (err) {
+        console.warn('Camera Access Warning:', err);
+      }
+    }
+
+    async function closeScanner() {
+      if (html5QrScanner) {
+        try {
+          await html5QrScanner.stop();
+          html5QrScanner.clear();
+        } catch (e) {}
+        html5QrScanner = null;
+      }
+      document.getElementById('modal-scanner').classList.add('hidden');
+    }
+
+    function onCameraChange(cameraId) {
+      if (!cameraId) return;
+      if (html5QrScanner) {
+        html5QrScanner.stop().then(() => {
+          html5QrScanner.start(cameraId, { fps: 15, qrbox: { width: 220, height: 220 } }, handleDecodedQRCode);
+        });
+      }
+    }
+
+    // Render Quick Demo Test Buttons in Scanner Modal
+    function renderQuickScanButtons(mode) {
+      const container = document.getElementById('scanner-quick-buttons');
+      container.innerHTML = '';
+
+      if (mode === 'BORROWER') {
+        users.forEach(u => {
+          const btn = document.createElement('button');
+          btn.className = `px-2 py-1 rounded-lg text-[10px] font-semibold ${u.status === 'Suspended' ? 'bg-rose-100 text-rose-800' : 'bg-indigo-100 text-indigo-800'} hover:opacity-80`;
+          btn.innerText = `${u.name.split(' ')[0]} (${u.studentId})${u.status === 'Suspended' ? ' [ระงับ]' : ''}`;
+          btn.onclick = () => handleDecodedQRCode(u.userQrCode);
+          container.appendChild(btn);
+        });
+      } else if (mode === 'ASSET') {
+        assets.filter(a => a.status === 'Available').forEach(a => {
+          const btn = document.createElement('button');
+          btn.className = 'px-2 py-1 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 rounded-lg text-[10px] font-semibold';
+          btn.innerText = `+ [${a.assetCode}] ${a.name}`;
+          btn.onclick = () => handleDecodedQRCode(a.qrCodeHash);
+          container.appendChild(btn);
+        });
+      } else if (mode === 'RETURN') {
+        const borrowedAssets = assets.filter(a => a.status === 'Borrowed');
+        if (borrowedAssets.length === 0) {
+          container.innerHTML = '<span class="text-[11px] text-slate-400">ขณะนี้ไม่มีอุปกรณ์ที่ถูกยืมอยู่</span>';
+        } else {
+          borrowedAssets.forEach(a => {
+            const btn = document.createElement('button');
+            btn.className = 'px-2 py-1 bg-amber-100 text-amber-800 hover:bg-amber-200 rounded-lg text-[10px] font-semibold';
+            btn.innerText = `คืน [${a.assetCode}]`;
+            btn.onclick = () => handleDecodedQRCode(a.qrCodeHash);
+            container.appendChild(btn);
+          });
+        }
+      }
+    }
+
+    // Handle Code Detected
+    function handleDecodedQRCode(code) {
+      playBeep(true);
+      closeScanner();
+
+      if (currentScanMode === 'BORROWER') {
+        processScannedBorrower(code);
+      } else if (currentScanMode === 'ASSET') {
+        processScannedAsset(code);
+      } else if (currentScanMode === 'RETURN') {
+        processScannedReturn(code);
+      }
+    }
+
+    // ==========================================
+    // WORKFLOW 2: STAFF BORROW LOGIC
+    // ==========================================
+    function processScannedBorrower(userQrCode) {
+      const cleanInput = String(userQrCode).trim();
+      const digitsOnly = cleanInput.replace(/[^0-9]/g, '');
+      
+      // Match by studentId, userQrCode, or digits
+      let user = users.find(u => u.studentId === cleanInput || u.userQrCode === cleanInput || u.studentId === digitsOnly);
+
+      if (!user) {
+        // If scanned input has 11 digits, auto-fill into the input field!
+        if (digitsOnly.length === 11) {
+          renderBorrowerCard();
+          const idInput = document.getElementById('input-borrower-student-id');
+          if (idInput) {
+            idInput.value = digitsOnly;
+            handleStudentIdInput(digitsOnly);
+          }
+          showToast(`สแกนพบรหัส ${digitsOnly} กรุณากรอกชื่อผู้ยืมแล้วกดยืนยัน`, 'info');
+          return;
+        }
+
+        playBeep(false);
+        showToast('ไม่พบข้อมูลผู้ยืมจากรหัสนี้ กรุณากรอกรหัสนักศึกษา 11 หลักและชื่อ', 'error');
+        return;
+      }
+
+      // Check Suspended Status
+      if (user.status === 'Suspended') {
+        playBeep(false);
+        showToast(`ผู้ยืม (${user.name}) ติดสถานะระงับการใช้งานเนื่องจากมีรายการค้างส่ง`, 'error');
+      } else {
+        playBeep(true);
+        showToast(`ระบุตัวตนผู้ยืม: ${user.name} (${user.studentId}) เรียบร้อยแล้ว`, 'success');
+      }
+
+      currentBorrower = user;
+      renderBorrowerCard();
+      validateBorrowCart();
+    }
+
+    function handleStudentIdInput(val) {
+      const cleanVal = val.replace(/[^0-9]/g, '').slice(0, 11);
+      const inputEl = document.getElementById('input-borrower-student-id');
+      if (inputEl && inputEl.value !== cleanVal) inputEl.value = cleanVal;
+
+      const counterEl = document.getElementById('borrower-id-counter');
+      const badgeEl = document.getElementById('student-id-check-badge');
+      const statusEl = document.getElementById('student-id-lookup-status');
+
+      if (counterEl) {
+        counterEl.innerText = `${cleanVal.length}/11 หลัก`;
+        if (cleanVal.length === 11) {
+          counterEl.className = 'text-[10px] font-bold text-emerald-600';
+          if (badgeEl) badgeEl.classList.remove('hidden');
+        } else {
+          counterEl.className = 'text-[10px] font-semibold text-slate-400';
+          if (badgeEl) badgeEl.classList.add('hidden');
+        }
+      }
+
+      // Auto-lookup if 11 digits
+      if (cleanVal.length === 11) {
+        const existing = users.find(u => u.studentId === cleanVal);
+        if (existing) {
+          const nameInput = document.getElementById('input-borrower-name');
+          if (nameInput) nameInput.value = existing.name;
+          if (statusEl) {
+            statusEl.innerHTML = `<span class="text-emerald-600 font-semibold">✓ พบข้อมูลในระบบ: ${existing.name}</span>`;
+          }
+        } else {
+          if (statusEl) {
+            statusEl.innerHTML = `<span class="text-indigo-600">ผู้ยืมใหม่ (กรุณากรอกชื่อ-นามสกุล)</span>`;
+          }
+        }
+      } else {
+        if (statusEl) statusEl.innerHTML = '';
+      }
+    }
+
+    function focusBorrowerNameOrSubmit() {
+      const nameInput = document.getElementById('input-borrower-name');
+      if (nameInput && !nameInput.value.trim()) {
+        nameInput.focus();
+      } else {
+        submitBorrowerIdentification();
+      }
+    }
+
+    function submitBorrowerIdentification() {
+      const idInput = document.getElementById('input-borrower-student-id');
+      const nameInput = document.getElementById('input-borrower-name');
+      if (!idInput || !nameInput) return;
+
+      const studentId = idInput.value.trim().replace(/[^0-9]/g, '');
+      const name = nameInput.value.trim();
+
+      if (studentId.length !== 11) {
+        playBeep(false);
+        showToast('กรุณากรอกรหัสนักศึกษาให้ครบ 11 หลัก', 'warning');
+        idInput.focus();
+        return;
+      }
+
+      if (!name) {
+        playBeep(false);
+        showToast('กรุณาระบุชื่อ-นามสกุล ของผู้ยืม', 'warning');
+        nameInput.focus();
+        return;
+      }
+
+      let user = users.find(u => u.studentId === studentId);
+      if (!user) {
+        user = {
+          id: Date.now(),
+          studentId: studentId,
+          name: name,
+          email: `${studentId}@student.ac.th`,
+          phone: '-',
+          role: 'Borrower',
+          status: 'Active',
+          maxLimit: 3,
+          userQrCode: studentId
+        };
+        users.unshift(user);
+        persistData();
+        initQuickBorrowerSelect();
+      } else {
+        if (name && user.name !== name) {
+          user.name = name;
+          persistData();
+        }
+      }
+
+      processScannedBorrower(studentId);
+    }
+
+    function renderBorrowerCard() {
+      const card = document.getElementById('borrower-info-card');
+      if (!currentBorrower) {
+        card.innerHTML = `
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+            <div class="flex items-center gap-2 pb-2 border-b border-slate-200/80">
+              <div class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">👤</div>
+              <div>
+                <h4 class="font-bold text-slate-800 text-sm leading-tight">กรอกข้อมูลผู้ยืม</h4>
+                <p class="text-[11px] text-slate-500">ระบุรหัสนักศึกษา 11 หลัก และชื่อ-นามสกุล</p>
+              </div>
+            </div>
+
+            <!-- รหัสนักศึกษา 11 หลัก -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs font-bold text-slate-700">รหัสนักศึกษา (11 หลัก) <span class="text-rose-500">*</span></label>
+                <span id="borrower-id-counter" class="text-[10px] font-semibold text-slate-400">0/11 หลัก</span>
+              </div>
+              <div class="relative">
+                <input
+                  type="text"
+                  id="input-borrower-student-id"
+                  inputmode="numeric"
+                  maxlength="11"
+                  placeholder="เช่น 65010123456"
+                  oninput="handleStudentIdInput(this.value)"
+                  onkeydown="if(event.key==='Enter') focusBorrowerNameOrSubmit()"
+                  class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                <div id="student-id-check-badge" class="absolute right-2.5 top-2.5 hidden text-emerald-600 font-bold text-xs">
+                  ✓
+                </div>
+              </div>
+              <p id="student-id-lookup-status" class="text-[10px] text-slate-400 mt-1 min-h-[14px]"></p>
+            </div>
+
+            <!-- ชื่อ-นามสกุล ผู้ยืม -->
+            <div>
+              <label class="text-xs font-bold text-slate-700 block mb-1">ชื่อ - นามสกุล ผู้ยืม <span class="text-rose-500">*</span></label>
+              <input
+                type="text"
+                id="input-borrower-name"
+                placeholder="เช่น สมชาย ใจดี"
+                onkeydown="if(event.key==='Enter') submitBorrowerIdentification()"
+                class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+            </div>
+
+            <!-- ปุ่มยืนยัน -->
+            <button
+              type="button"
+              onclick="submitBorrowerIdentification()"
+              class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-100 transition flex items-center justify-center gap-1.5"
+            >
+              ✓ ยืนยันระบุตัวตนผู้ยืม
+            </button>
+
+            <div class="relative flex py-0.5 items-center">
+              <div class="flex-grow border-t border-slate-200"></div>
+              <span class="flex-shrink mx-2 text-[10px] text-slate-400">หรือสแกนบัตร</span>
+              <div class="flex-grow border-t border-slate-200"></div>
+            </div>
+
+            <button
+              type="button"
+              onclick="openScanner('BORROWER')"
+              class="w-full py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
+            >
+              📷 สแกน QR / บาร์โค้ดบัตร
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      const activeBorrows = transactions.filter(t => t.borrowerId === currentBorrower.id && t.status === 'Active');
+
+      card.innerHTML = `
+        <div class="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 text-xs space-y-3">
+          <div class="flex items-center justify-between border-b border-indigo-100 pb-2.5">
+            <div>
+              <span class="text-[10px] font-bold text-indigo-600 uppercase tracking-wide block">ผู้ยืมที่ระบุตัวตนแล้ว</span>
+              <h3 class="font-bold text-slate-900 text-base mt-0.5">${currentBorrower.name}</h3>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${currentBorrower.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+              ${currentBorrower.status === 'Active' ? '● ใช้งานได้' : '● ระงับสิทธิ์'}
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-slate-600 bg-white p-3 rounded-xl border border-indigo-50">
+            <div>
+              <span class="text-[10px] text-slate-400 block">รหัสนักศึกษา (11 หลัก):</span>
+              <strong class="text-xs font-mono text-indigo-700 tracking-wider">${currentBorrower.studentId}</strong>
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 block">สิทธิ์การยืม:</span>
+              <strong class="text-xs text-slate-800">${activeBorrows.length} / ${currentBorrower.maxLimit} ชิ้น</strong>
+            </div>
+          </div>
+
+          ${currentBorrower.status === 'Suspended' ? `
+            <div class="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-[11px] font-semibold">
+              ⚠️ ผู้ยืมนี้ติดสถานะระงับการใช้งานเนื่องจากมีรายการค้างส่ง กรุณาเคลียร์รายการคืนก่อน
+            </div>
+          ` : ''}
+
+          <div class="pt-2 flex items-center justify-between border-t border-indigo-100">
+            <span class="text-[11px] text-slate-500">พร้อมเพิ่มอุปกรณ์ในขั้นตอนที่ 2</span>
+            <button onclick="clearBorrower()" class="px-3 py-1 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-xs font-semibold transition">
+              ✕ เปลี่ยนผู้ยืม
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function clearBorrower() {
+      currentBorrower = null;
+      renderBorrowerCard();
+      validateBorrowCart();
+    }
+
+    function processScannedAsset(assetQrCode) {
+      if (!currentBorrower) {
+        showToast('กรุณาสแกนระบุตัวตนผู้ยืมก่อนเพิ่มอุปกรณ์', 'warning');
+        return;
+      }
+      if (currentBorrower.status === 'Suspended') {
+        showToast('ผู้ยืมติดสถานะ Suspended ไม่สามารถยืมอุปกรณ์ได้', 'error');
+        return;
+      }
+
+      const asset = assets.find(a => a.qrCodeHash === assetQrCode || a.assetCode === assetQrCode);
+      if (!asset) {
+        playBeep(false);
+        showToast('ไม่พบอุปกรณ์จากรหัสนี้', 'error');
+        return;
+      }
+
+      if (asset.status !== 'Available') {
+        playBeep(false);
+        showToast(`อุปกรณ์ [${asset.assetCode}] อยู่ในสถานะ "${asset.status}" ไม่พร้อมให้ยืม`, 'error');
+        return;
+      }
+
+      if (scannedAssetsInCart.some(a => a.id === asset.id)) {
+        showToast(`อุปกรณ์ ${asset.assetCode} อยู่ในรายการแล้ว`, 'warning');
+        return;
+      }
+
+      // Check max limit
+      const currentActiveCount = transactions.filter(t => t.borrowerId === currentBorrower.id && t.status === 'Active').length;
+      if (currentActiveCount + scannedAssetsInCart.length + 1 > currentBorrower.maxLimit) {
+        playBeep(false);
+        showToast(`เกินโควตายืมสูงสุดของผู้ใช้ (${currentBorrower.maxLimit} ชิ้น)`, 'error');
+        return;
+      }
+
+      scannedAssetsInCart.push(asset);
+      showToast(`เพิ่ม ${asset.assetCode} เข้าสู่รายการยืมแล้ว`, 'success');
+      renderScannedAssetsList();
+      validateBorrowCart();
+    }
+
+    function renderScannedAssetsList() {
+      const container = document.getElementById('scanned-assets-list');
+      const countBadge = document.getElementById('asset-cart-count');
+      countBadge.innerText = `(${scannedAssetsInCart.length} รายการ)`;
+
+      if (scannedAssetsInCart.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-16 text-slate-400">
+            <div class="text-3xl mb-2">📦</div>
+            <p class="text-sm">ยังไม่มีอุปกรณ์ในรายการยืม</p>
+            <p class="text-xs text-slate-400 mt-0.5">กดปุ่ม "สแกน QR อุปกรณ์" เพื่อสแกนบาร์โค้ดหรือ QR Code ที่ติดบนตัวเครื่อง</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = scannedAssetsInCart.map((asset, index) => `
+        <div class="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs hover:border-indigo-300 transition">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center">
+              ${index + 1}
+            </div>
+            <div>
+              <p class="font-bold text-slate-800 text-sm">[${asset.assetCode}] ${asset.name}</p>
+              <p class="text-slate-500">${asset.category} • ยืมได้นานสูงสุด ${asset.maxBorrowDays} วัน</p>
+            </div>
+          </div>
+          <button onclick="removeAssetFromCart(${asset.id})" class="text-rose-500 hover:text-rose-700 text-xs font-semibold px-2 py-1">
+            ลบ
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function removeAssetFromCart(assetId) {
+      scannedAssetsInCart = scannedAssetsInCart.filter(a => a.id !== assetId);
+      renderScannedAssetsList();
+      validateBorrowCart();
+    }
+
+    function validateBorrowCart() {
+      const btn = document.getElementById('btn-confirm-borrow');
+      const canSubmit = currentBorrower && currentBorrower.status === 'Active' && scannedAssetsInCart.length > 0;
+      
+      if (canSubmit) {
+        btn.disabled = false;
+        btn.className = 'w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl transition shadow-md shadow-emerald-100 cursor-pointer flex items-center justify-center gap-2';
+      } else {
+        btn.disabled = true;
+        btn.className = 'w-full sm:w-auto px-8 py-3 bg-slate-200 text-slate-400 font-bold rounded-2xl transition cursor-not-allowed flex items-center justify-center gap-2';
+      }
+    }
+
+    function submitBorrow() {
+      if (!currentBorrower || scannedAssetsInCart.length === 0) return;
+
+      const notes = document.getElementById('borrow-notes').value;
+      const now = new Date();
+
+      scannedAssetsInCart.forEach(asset => {
+        const dueDate = new Date();
+        dueDate.setDate(now.getDate() + asset.maxBorrowDays);
+
+        const newTx = {
+          txId: 'TX-' + Math.floor(100000 + Math.random() * 900000),
+          assetId: asset.id,
+          assetCode: asset.assetCode,
+          assetName: asset.name,
+          borrowerId: currentBorrower.id,
+          borrowerName: currentBorrower.name,
+          borrowerStudentId: currentBorrower.studentId,
+          borrowDate: now.toISOString(),
+          dueDate: dueDate.toISOString(),
+          returnDate: null,
+          status: 'Active',
+          lateFee: 0,
+          notes: notes || 'ยืมผ่านจุดบริการ Staff'
+        };
+
+        transactions.unshift(newTx);
+
+        // Update asset status
+        const a = assets.find(x => x.id === asset.id);
+        if (a) a.status = 'Borrowed';
+      });
+
+      persistData();
+      playBeep(true);
+      showToast(`บันทึกการยืมสำเร็จ ${scannedAssetsInCart.length} รายการ`, 'success');
+
+      // เรียก Backend API (Aiven MySQL + LINE Messaging API Push เข้ากลุ่ม)
+      try {
+        const borrowerQr = currentBorrower.studentId || currentBorrower.userQrCode || String(currentBorrower.id);
+        const assetCodes = scannedAssetsInCart.map(a => a.assetCode || a.qrCodeHash);
+        fetch('/api/transactions/borrow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            borrowerQrCode: borrowerQr,
+            assetQrCodes: assetCodes,
+            notes: notes || 'ยืมผ่านจุดบริการ'
+          })
+        }).then(r => r.json()).then(res => {
+          if (res.success) {
+            showToast('💬 แจ้งเตือนเข้า LINE Group สำเร็จแล้ว!', 'success');
+          }
+        }).catch(err => {
+          console.warn('[LINE/API] Network call failed:', err);
+        });
+      } catch (e) {}
+
+      // Reset
+      currentBorrower = null;
+      scannedAssetsInCart = [];
+      document.getElementById('borrow-notes').value = '';
+      renderBorrowerCard();
+      renderScannedAssetsList();
+      validateBorrowCart();
+    }
+
+    // ==========================================
+    // WORKFLOW 3: STAFF RETURN LOGIC
+    // ==========================================
+    function processScannedReturn(assetQrCode) {
+      const asset = assets.find(a => a.qrCodeHash === assetQrCode || a.assetCode === assetQrCode);
+      if (!asset) {
+        playBeep(false);
+        showToast('ไม่พบอุปกรณ์จากรหัสนี้', 'error');
+        return;
+      }
+
+      const activeTx = transactions.find(t => t.assetId === asset.id && t.status === 'Active');
+      if (!activeTx) {
+        playBeep(false);
+        showToast(`อุปกรณ์ [${asset.assetCode}] ไม่มีประวัติการยืมค้างในระบบ (สถานะ: ${asset.status})`, 'warning');
+        return;
+      }
+
+      displayReturnCheckin(asset, activeTx);
+    }
+
+    function displayReturnCheckin(asset, tx) {
+      const container = document.getElementById('return-details-container');
+      const now = new Date();
+      const dueDate = new Date(tx.dueDate);
+      const isLate = now > dueDate;
+      let lateDays = 0;
+      let lateFee = 0;
+
+      if (isLate) {
+        const diffTime = Math.abs(now - dueDate);
+        lateDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        lateFee = lateDays * asset.finePerDay;
+      }
+
+      container.innerHTML = `
+        <div class="bg-teal-50/50 border border-teal-200 rounded-3xl p-6 text-xs space-y-4">
+          <div class="flex items-center justify-between border-b border-teal-100 pb-3">
+            <div>
+              <span class="text-xs font-bold text-teal-800 bg-teal-100 px-3 py-1 rounded-full">ยืนยันการรับคืนอุปกรณ์</span>
+              <h3 class="text-lg font-bold text-slate-800 mt-2">[${asset.assetCode}] ${asset.name}</h3>
+            </div>
+            <span class="text-xs text-slate-500">TX: ${tx.txId}</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white p-4 rounded-2xl border border-slate-100">
+            <div>
+              <p class="text-slate-500">ผู้ยืม:</p>
+              <p class="font-bold text-slate-800 text-sm">${tx.borrowerName} ${tx.borrowerStudentId ? `<span class="text-xs font-mono text-teal-700 block">(${tx.borrowerStudentId})</span>` : ''}</p>
+            </div>
+            <div>
+              <p class="text-slate-500">วันที่ยืม:</p>
+              <p class="font-semibold text-slate-700">${new Date(tx.borrowDate).toLocaleDateString('th-TH')}</p>
+            </div>
+            <div>
+              <p class="text-slate-500">กำหนดคืนเดิม:</p>
+              <p class="font-semibold ${isLate ? 'text-rose-600' : 'text-slate-700'}">${new Date(tx.dueDate).toLocaleDateString('th-TH')} ${isLate ? `(เกิน ${lateDays} วัน)` : '(ปกติ)'}</p>
+            </div>
+          </div>
+
+          ${lateFee > 0 ? `
+            <div class="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl font-bold flex items-center justify-between">
+              <span>⚠️ มีค่าปรับคืนล่าช้า (${lateDays} วัน x ${asset.finePerDay} บ.):</span>
+              <span class="text-base">${lateFee} บาท</span>
+            </div>
+          ` : ''}
+
+          <div class="space-y-2">
+            <label class="font-bold text-slate-700 block">เลือกสภาพอุปกรณ์ตอนคืน:</label>
+            <div class="flex gap-3">
+              <label class="flex items-center gap-1.5 cursor-pointer bg-white border border-slate-200 px-3 py-2 rounded-xl">
+                <input type="radio" name="return-condition" value="Normal" checked>
+                <span class="font-semibold text-slate-700">ปกติ (Normal)</span>
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer bg-white border border-slate-200 px-3 py-2 rounded-xl">
+                <input type="radio" name="return-condition" value="Damaged">
+                <span class="font-semibold text-amber-700">ชำรุด (Damaged)</span>
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer bg-white border border-slate-200 px-3 py-2 rounded-xl">
+                <input type="radio" name="return-condition" value="Lost">
+                <span class="font-semibold text-rose-700">สูญหาย (Lost)</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">บันทึกเพิ่มเติมตอนคืน:</label>
+            <input type="text" id="return-notes-input" placeholder="เช่น รอยขีดข่วน, ส่งคืนพร้อมสายชาร์จครบชุด" class="w-full bg-white border border-slate-200 rounded-xl p-2.5">
+          </div>
+
+          <div class="pt-3 flex gap-3">
+            <button onclick="confirmReturn('${tx.txId}', ${asset.id}, ${lateFee})" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow transition text-sm">
+              ✓ ยืนยันการรับคืนอุปกรณ์
+            </button>
+            <button onclick="renderActiveBorrowsTable()" class="px-5 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-2xl font-semibold">
+              ยกเลิก
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function confirmReturn(txId, assetId, lateFee) {
+      const condition = document.querySelector('input[name="return-condition"]:checked').value;
+      const notes = document.getElementById('return-notes-input').value;
+      const now = new Date();
+
+      const tx = transactions.find(t => t.txId === txId);
+      const asset = assets.find(a => a.id === assetId);
+
+      if (tx) {
+        tx.returnDate = now.toISOString();
+        tx.status = condition === 'Normal' ? 'Returned' : condition;
+        tx.lateFee = lateFee;
+        if (notes) tx.notes += ` | หมายเหตุคืน: ${notes}`;
+      }
+
+      if (asset) {
+        if (condition === 'Normal') asset.status = 'Available';
+        else if (condition === 'Damaged') asset.status = 'Maintenance';
+        else if (condition === 'Lost') asset.status = 'Lost';
+      }
+
+      // Check remaining overdue for user to lift Suspended
+      if (tx) {
+        const hasOverdue = transactions.some(t => t.borrowerId === tx.borrowerId && t.status === 'Active' && new Date(t.dueDate) < now);
+        if (!hasOverdue) {
+          const user = users.find(u => u.id === tx.borrowerId);
+          if (user && user.status === 'Suspended') {
+            user.status = 'Active';
+            showToast(`ปลดล็อกสถานะผู้ยืม ${user.name} เป็น Active เรียบร้อยแล้ว`, 'info');
+          }
+        }
+      }
+
+      persistData();
+      playBeep(true);
+      showToast(`รับคืนอุปกรณ์ [${asset.assetCode}] สำเร็จ`, 'success');
+
+      // เรียก Backend API (Aiven MySQL + LINE Messaging API Push เข้ากลุ่ม)
+      try {
+        if (asset) {
+          fetch('/api/transactions/return', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              assetQrCode: asset.assetCode || asset.qrCodeHash,
+              conditionStatus: condition,
+              returnNotes: notes || ''
+            })
+          }).then(r => r.json()).then(res => {
+            if (res.success) {
+              showToast('💬 แจ้งเตือนการคืนเข้า LINE Group สำเร็จแล้ว!', 'success');
+            }
+          }).catch(err => {
+            console.warn('[LINE/API] Network call failed:', err);
+          });
+        }
+      } catch (e) {}
+
+      renderActiveBorrowsTable();
+    }
+
+    function renderActiveBorrowsTable() {
+      const container = document.getElementById('return-details-container');
+      container.innerHTML = `
+        <div class="text-center py-12 text-slate-400">
+          <div class="text-4xl mb-3">🔄</div>
+          <h3 class="text-base font-bold text-slate-700">พร้อมรับคืนอุปกรณ์</h3>
+          <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+            กดปุ่ม "สแกน QR อุปกรณ์ที่นำมาคืน" ด้านบน หรือคลิกปุ่ม "รับคืน" ในตารางด้านล่างนี้
+          </p>
+        </div>
+      `;
+
+      const tbody = document.getElementById('active-borrows-tbody');
+      const badge = document.getElementById('active-borrow-count-badge');
+      const activeList = transactions.filter(t => t.status === 'Active');
+      badge.innerText = `${activeList.length} รายการ`;
+
+      if (activeList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400">ไม่มีรายการอุปกรณ์ที่ค้างส่งในขณะนี้</td></tr>`;
+        return;
+      }
+
+      const now = new Date();
+      tbody.innerHTML = activeList.map(tx => {
+        const isLate = now > new Date(tx.dueDate);
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3 font-bold text-slate-800">${tx.assetCode}</td>
+            <td class="p-3">${tx.assetName}</td>
+            <td class="p-3 font-semibold text-slate-700">
+              ${tx.borrowerName}
+              ${tx.borrowerStudentId ? `<span class="text-[11px] font-mono text-slate-400 block">${tx.borrowerStudentId}</span>` : ''}
+            </td>
+            <td class="p-3">${new Date(tx.borrowDate).toLocaleDateString('th-TH')}</td>
+            <td class="p-3 font-bold ${isLate ? 'text-rose-600' : 'text-slate-700'}">${new Date(tx.dueDate).toLocaleDateString('th-TH')}</td>
+            <td class="p-3">
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${isLate ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">
+                ${isLate ? 'Overdue' : 'Active'}
+              </span>
+            </td>
+            <td class="p-3 text-right">
+              <button onclick="displayReturnCheckin(assets.find(a => a.id === ${tx.assetId}), transactions.find(t => t.txId === '${tx.txId}'))" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition">
+                รับคืน
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // ==========================================
+    // TAB 3: ASSET INVENTORY & PRINT QR CODE
+    // ==========================================
+    function renderAssetsGrid() {
+      const grid = document.getElementById('assets-grid');
+      const statusColors = {
+        Available: 'bg-emerald-100 text-emerald-800',
+        Borrowed: 'bg-amber-100 text-amber-800',
+        Maintenance: 'bg-rose-100 text-rose-800',
+        Lost: 'bg-slate-200 text-slate-800'
+      };
+
+      grid.innerHTML = assets.map(a => `
+        <div class="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="font-bold text-xs text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">${a.assetCode}</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColors[a.status] || 'bg-slate-100'}">${a.status}</span>
+            </div>
+            <h3 class="font-bold text-slate-800 text-sm mb-1">${a.name}</h3>
+            <p class="text-xs text-slate-500 mb-2">${a.category} • ยืมได้ ${a.maxBorrowDays} วัน</p>
+            <p class="text-[11px] text-slate-400 mb-4">${a.desc}</p>
+          </div>
+
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+            <span class="text-[11px] text-slate-500">📍 ${a.location}</span>
+            <button onclick="openPrintQrModal('${a.assetCode}', '${a.name}', '${a.qrCodeHash}', '${a.location}')" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold text-xs transition flex items-center gap-1">
+              🖨️ พิมพ์ QR
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openPrintQrModal(code, name, hash, loc) {
+      document.getElementById('print-asset-title').innerText = name;
+      document.getElementById('print-asset-code').innerText = 'รหัสอุปกรณ์: ' + code;
+      document.getElementById('print-asset-loc').innerText = 'สถานที่เก็บ: ' + loc;
+
+      const target = document.getElementById('print-qr-target');
+      target.innerHTML = '';
+
+      new QRCode(target, {
+        text: hash,
+        width: 150,
+        height: 150,
+        colorDark: "#1e293b",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
+      document.getElementById('modal-print-qr').classList.remove('hidden');
+    }
+
+    function openAddAssetModal() {
+      document.getElementById('modal-add-asset').classList.remove('hidden');
+    }
+
+    function handleSaveAsset(e) {
+      e.preventDefault();
+      const code = document.getElementById('new-asset-code').value.trim();
+      const name = document.getElementById('new-asset-name').value.trim();
+      const cat = document.getElementById('new-asset-category').value;
+      const loc = document.getElementById('new-asset-loc').value.trim();
+      const desc = document.getElementById('new-asset-desc').value.trim();
+
+      const newAsset = {
+        id: Date.now(),
+        assetCode: code,
+        name: name,
+        category: cat,
+        maxBorrowDays: cat.includes('Notebook') ? 7 : cat.includes('Projector') ? 3 : 5,
+        finePerDay: cat.includes('Projector') ? 100 : 50,
+        status: 'Available',
+        location: loc,
+        qrCodeHash: 'AST_' + code.replace(/[^a-zA-Z0-9]/g, '_') + '_' + Math.random().toString(36).substring(2, 6),
+        desc: desc || 'ไม่มีบันทึกเพิ่มเติม'
+      };
+
+      assets.push(newAsset);
+      persistData();
+      document.getElementById('modal-add-asset').classList.add('hidden');
+      document.getElementById('form-add-asset').reset();
+      showToast(`บันทึกอุปกรณ์ ${code} เรียบร้อยแล้ว`, 'success');
+      renderAssetsGrid();
+    }
+
+    // ==========================================
+    // TAB 4: USERS & BORROWER CARDS
+    // ==========================================
+    function renderUsersGrid() {
+      const grid = document.getElementById('users-grid');
+      grid.innerHTML = users.map(u => `
+        <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg">รหัส: ${u.studentId}</span>
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${u.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                ${u.status === 'Active' ? '● ปกติ' : '● ระงับสิทธิ์'}
+              </span>
+            </div>
+            <h3 class="font-bold text-slate-800 text-base mb-1">${u.name}</h3>
+            <p class="text-xs text-slate-500 mb-1">📧 ${u.email}</p>
+            <p class="text-xs text-slate-500 mb-4">📞 ${u.phone}</p>
+          </div>
+
+          <div class="bg-slate-50 p-3 rounded-2xl flex items-center justify-between">
+            <div id="user-qr-thumb-${u.id}" class="w-16 h-16"></div>
+            <div class="text-right">
+              <span class="text-[10px] text-slate-400 block">QR รหัสนักศึกษา 11 หลัก</span>
+              <button onclick="openPrintQrModal('${u.studentId}', '${u.name}', '${u.studentId}', 'บัตรผู้ยืม (11 หลัก)')" class="mt-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition">
+                🖨️ พิมพ์บัตร
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      // Generate QR codes for all users
+      users.forEach(u => {
+        const el = document.getElementById(`user-qr-thumb-${u.id}`);
+        if (el) {
+          el.innerHTML = '';
+          new QRCode(el, { text: u.studentId || u.userQrCode, width: 64, height: 64 });
+        }
+      });
+    }
+
+    function openAddUserModal() {
+      document.getElementById('modal-add-user').classList.remove('hidden');
+    }
+
+    function handleSaveUser(e) {
+      e.preventDefault();
+      const studentId = document.getElementById('new-user-student-id').value.trim().replace(/[^0-9]/g, '');
+      const name = document.getElementById('new-user-name').value.trim();
+      const email = document.getElementById('new-user-email').value.trim() || `${studentId}@student.ac.th`;
+      const phone = document.getElementById('new-user-phone').value.trim() || '-';
+      const limit = parseInt(document.getElementById('new-user-limit').value) || 3;
+
+      if (studentId.length !== 11) {
+        showToast('กรุณากรอกรหัสนักศึกษาให้ครบ 11 หลัก', 'error');
+        return;
+      }
+
+      if (users.some(u => u.studentId === studentId)) {
+        showToast('รหัสนักศึกษานี้มีในระบบแล้ว', 'warning');
+        return;
+      }
+
+      const newUser = {
+        id: Date.now(),
+        studentId: studentId,
+        name: name,
+        email: email,
+        phone: phone,
+        role: 'Borrower',
+        status: 'Active',
+        maxLimit: limit,
+        userQrCode: studentId
+      };
+
+      users.unshift(newUser);
+      persistData();
+      document.getElementById('modal-add-user').classList.add('hidden');
+      document.getElementById('form-add-user').reset();
+      document.getElementById('modal-user-id-counter').innerText = '0/11 หลัก';
+      showToast(`เพิ่มผู้ยืม ${name} (${studentId}) เรียบร้อยแล้ว`, 'success');
+      renderUsersGrid();
+      initQuickBorrowerSelect();
+    }
+
+    // ==========================================
+    // TAB 5: HISTORY & DASHBOARD STATS
+    // ==========================================
+    function renderHistoryTable() {
+      const tbody = document.getElementById('transactions-history-tbody');
+      if (transactions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-slate-400">ยังไม่มีประวัติการทำรายการในระบบ</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = transactions.map(tx => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="p-3 font-semibold text-slate-500">${tx.txId}</td>
+          <td class="p-3 font-bold text-slate-800">${tx.assetCode}</td>
+          <td class="p-3">${tx.assetName}</td>
+          <td class="p-3 font-semibold text-slate-800">
+            ${tx.borrowerName}
+            ${tx.borrowerStudentId ? `<span class="text-[11px] font-mono text-indigo-600 block">${tx.borrowerStudentId}</span>` : ''}
+          </td>
+          <td class="p-3">${new Date(tx.borrowDate).toLocaleDateString('th-TH')}</td>
+          <td class="p-3">${new Date(tx.dueDate).toLocaleDateString('th-TH')}</td>
+          <td class="p-3">${tx.returnDate ? new Date(tx.returnDate).toLocaleDateString('th-TH') : '-'}</td>
+          <td class="p-3">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              tx.status === 'Active' ? 'bg-amber-100 text-amber-800' :
+              tx.status === 'Returned' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+            }">${tx.status}</span>
+          </td>
+          <td class="p-3 font-semibold ${tx.lateFee > 0 ? 'text-rose-600' : 'text-slate-500'}">${tx.lateFee} บ.</td>
+          <td class="p-3 text-[11px] text-slate-500">${tx.notes || '-'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function updateDashboardStats() {
+      const total = assets.length;
+      const borrowed = assets.filter(a => a.status === 'Borrowed').length;
+      const available = assets.filter(a => a.status === 'Available').length;
+      const overdue = transactions.filter(t => t.status === 'Active' && new Date() > new Date(t.dueDate)).length;
+
+      document.getElementById('stat-total-assets').innerText = total;
+      document.getElementById('stat-borrowed-assets').innerText = borrowed;
+      document.getElementById('stat-available-assets').innerText = available;
+      document.getElementById('stat-overdue-assets').innerText = overdue;
+    }
+
+    // Quick Borrower Select Options
+    function initQuickBorrowerSelect() {
+      const sel = document.getElementById('quick-borrower-select');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- เลือกผู้ใช้ตัวอย่างเพื่อทดสอบ --</option>';
+      users.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.studentId;
+        opt.innerText = `${u.name} (รหัส: ${u.studentId}) - ${u.status === 'Active' ? 'ปกติ' : 'ระงับ'}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function quickSelectBorrower(val) {
+      if (val) processScannedBorrower(val);
+    }
+
+    // Modal Helpers
+    function openSelectBorrowerModal() {
+      const inputEl = document.getElementById('input-borrower-student-id');
+      if (inputEl) {
+        inputEl.focus();
+        showToast('กรอกรหัสนักศึกษา 11 หลัก หรือเลือกจากรายชื่อทดสอบด้านล่าง', 'info');
+      }
+    }
+    function openSelectAssetModal() {
+      openScanner('ASSET');
+    }
+
+    // ==========================================
+    // INITIALIZATION ON PAGE LOAD
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', () => {
+      initQuickBorrowerSelect();
+      updateDashboardStats();
+      renderBorrowerCard();
+      renderScannedAssetsList();
+      validateBorrowCart();
+    });
+  </script>
+</body>
+</html>
